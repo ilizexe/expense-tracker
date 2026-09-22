@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Financial Dashboard</h1>
+
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <span class="kpi-label">Income</span>
+                <span class="kpi-value positive">+${{ "%.2f"|format(total_income) }}</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Expenses</span>
+                <span class="kpi-value negative">-${{ "%.2f"|format(total_expense) }}</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Net Cash Flow</span>
+                <span class="kpi-value {% if net_cash_flow >= 0 %}positive{% else %}negative{% endif %}">
+                    ${{ "%.2f"|format(net_cash_flow) }}
+                </span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Savings Rate</span>
+                <span class="kpi-value">{{ "%.1f"|format(savings_rate) }}%</span>
+            </div>
+        </div>
+
+        <div class="form-card">
+            <h2>{% if edit_item %}Edit Transaction{% else %}Add Transaction{% endif %}</h2>
+            <form action="{% if edit_item %}/update/{{ edit_index }}{% else %}/add{% endif %}" method="POST" class="form-grid">
+                <div class="form-group">
+                    <select name="type" required>
+                        <option value="expense" {% if edit_item and edit_item.type == 'expense' %}selected{% endif %}>Expense</option>
+                        <option value="income" {% if edit_item and edit_item.type == 'income' %}selected{% endif %}>Income</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <input type="text" name="title" placeholder="Transaction title" value="{{ edit_item.title if edit_item else '' }}" required>
+                </div>
+
+                <div class="form-group">
+                    <input type="number" step="0.01" name="amount" placeholder="Amount ($)" value="{{ edit_item.amount if edit_item else '' }}" required>
+                </div>
+
+                <div class="form-group">
+                    <select name="category" required>
+                        <option value="" disabled {% if not edit_item %}selected{% endif %}>Category</option>
+                        {% for cat in categories %}
+                            <option value="{{ cat }}" {% if edit_item and edit_item.category == cat %}selected{% endif %}>{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <select name="payment_method" required>
+                        <option value="" disabled {% if not edit_item %}selected{% endif %}>Payment Method</option>
+                        {% for method in payment_methods %}
+                            <option value="{{ method }}" {% if edit_item and edit_item.payment_method == method %}selected{% endif %}>{{ method }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <input type="date" name="date" value="{{ edit_item.date if edit_item else today_date }}" required>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">{% if edit_item %}Update{% else %}Add Entry{% endif %}</button>
+                    {% if edit_item %}
+                        <a href="/" class="btn-cancel">Cancel</a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+
+        <div class="chart-container">
+            <h2>Expense Breakdown</h2>
+            <canvas id="spendingChart"></canvas>
+        </div>
+
+        <h2>Transactions</h2>
+        <ul class="transaction-list">
+            {% for item in expenses %}
+                <li class="transaction-item">
+                    <div class="transaction-details">
+                        <span class="transaction-title">{{ item.title }}</span>
+                        <div class="badge-group">
+                            <span class="badge badge-date">{{ item.date }}</span>
+                            <span class="badge badge-category">{{ item.category }}</span>
+                            <span class="badge badge-payment">{{ item.payment_method }}</span>
+                        </div>
+                    </div>
+                    <div class="transaction-right">
+                        <span class="amount {% if item.type == 'income' %}positive{% else %}negative{% endif %}">
+                            {% if item.type == 'income' %}+{% else %}-{% endif %}${{ "%.2f"|format(item.amount) }}
+                        </span>
+                        <div class="action-buttons">
+                            <a href="/edit/{{ loop.index0 }}" class="edit-btn" title="Edit">✎</a>
+                            <form action="/delete/{{ loop.index0 }}" method="POST" style="margin: 0;">
+                                <button type="submit" class="delete-btn" title="Delete">×</button>
+                            </form>
+                        </div>
+                    </div>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('spendingChart').getContext('2d');
+        const labels = {{ category_labels | tojson }};
+        const data = {{ category_values | tojson }};
+
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: [
+                        '#38bdf8', '#34d399', '#f43f5e', 
+                        '#fbbf24', '#a78bfa', '#94a3b8', '#f97316', '#ec4899'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: '#94a3b8', font: { size: 11 } }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
